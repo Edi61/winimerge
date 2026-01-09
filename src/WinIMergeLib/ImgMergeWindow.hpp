@@ -20,6 +20,7 @@
 
 #include <Windows.h>
 #include <cstring>
+#include <chrono>
 #include "FreeImagePlus.h"
 #include "ImgWindow.hpp"
 #include "ImgMergeBuffer.hpp"
@@ -47,6 +48,8 @@ namespace
 
 class CImgMergeWindow : public IImgMergeWindow
 {
+	static constexpr int TIMER_INTERVAL = 25;
+
 	struct EventListenerInfo 
 	{
 		EventListenerInfo(EventListenerFunc func, void *userdata) : func(func), userdata(userdata) {}
@@ -69,6 +72,8 @@ public:
 		, m_draggingMode(DRAGGING_MODE::MOVE)
 		, m_draggingModeCurrent(DRAGGING_MODE::MOVE)
 		, m_gdiplusToken(0)
+		, m_timerPrev()
+		, m_timerNext()
 	{
 		for (int i = 0; i < 3; ++i)
 			m_ChildWndProc[i] = NULL;
@@ -392,10 +397,11 @@ public:
 	{
 		m_buffer.SetOverlayMode(static_cast<CImgMergeBuffer::OVERLAY_MODE>(overlayMode));
 		Invalidate();
-		if (overlayMode == OVERLAY_ALPHABLEND_ANIM)
-			SetTimer(m_hWnd, 2, 50, NULL);
+		if (overlayMode == OVERLAY_ALPHABLEND_ANIM || m_buffer.GetBlinkDifferences())
+			SetTimer(m_hWnd, 2, TIMER_INTERVAL, NULL);
 		else
 			KillTimer(m_hWnd, 2);
+		m_timerNext = {};
 	}
 
 	double GetOverlayAlpha() const override
@@ -429,10 +435,11 @@ public:
 	{
 		m_buffer.SetBlinkDifferences(blink);
 		Invalidate();
-		if (blink)
-			SetTimer(m_hWnd, 1, 400, NULL);
+		if (blink || m_buffer.GetOverlayMode() == OVERLAY_ALPHABLEND_ANIM)
+			SetTimer(m_hWnd, 2, TIMER_INTERVAL, NULL);
 		else
-			KillTimer(m_hWnd, 1);
+			KillTimer(m_hWnd, 2);
+		m_timerNext = {};
 	}
 
 	float GetVectorImageZoomRatio() const override
@@ -860,6 +867,7 @@ public:
 					m_imgWindow[i].SetScrollBar(m_bHorizontalSplit ? SB_VERT : SB_HORZ);
 				m_imgWindow[i].SetWindowRect(rects[i]);
 				m_imgWindow[i].SetImage(m_buffer.GetImage(i)->getFipImage());
+				m_imgWindow[i].SetDarkBackgroundEnabled(s_bDarkBackgroundEnabled);
 			}
 
 			Event evt;
@@ -892,6 +900,7 @@ public:
 					m_imgWindow[i].SetScrollBar(m_bHorizontalSplit ? SB_VERT : SB_HORZ);
 				m_imgWindow[i].SetWindowRect(rects[i]);
 				m_imgWindow[i].SetImage(m_buffer.GetImage(i)->getFipImage());
+				m_imgWindow[i].SetDarkBackgroundEnabled(s_bDarkBackgroundEnabled);
 			}
 
 			Event evt;
@@ -1179,6 +1188,52 @@ public:
 		return m_buffer.IsSaveSupported(pane);
 	}
 
+	int GetBlinkInterval() const override
+	{
+		return m_buffer.GetBlinkInterval();
+	}
+
+	void SetBlinkInterval(int interval) override
+	{
+		m_buffer.SetBlinkInterval(interval);
+	}
+
+	int GetOverlayAnimationInterval() const override
+	{
+		return m_buffer.GetOverlayAnimationInterval();
+	}
+
+	void SetOverlayAnimationInterval(int interval) override
+	{
+		m_buffer.SetOverlayAnimationInterval(interval);
+	}
+
+	bool IsDarkBackgroundEnabled() const
+	{
+		return s_bDarkBackgroundEnabled;
+	}
+
+	void SetDarkBackgroundEnabled(bool enabled)
+	{
+		if (s_bDarkBackgroundEnabled == enabled)
+			return;
+		s_bDarkBackgroundEnabled = enabled;
+		DeleteObject(s_hbrBackground);
+		s_hbrBackground = CreateSolidBrush(s_bDarkBackgroundEnabled ? RGB(0, 0, 0) : GetSysColor(COLOR_3DFACE));
+		if (m_hWnd)
+		{
+			for (int pane = 0; pane < m_nImages; ++pane)
+				m_imgWindow[pane].SetDarkBackgroundEnabled(s_bDarkBackgroundEnabled);
+			SetClassLongPtr(m_hWnd, GCLP_HBRBACKGROUND, (LONG_PTR)s_hbrBackground);
+			InvalidateRect(m_hWnd, NULL, TRUE);
+		}
+	}
+
+	int GetLastErrorCode() const
+	{
+		return m_buffer.GetLastErrorCode();
+	}
+
 private:
 
 	ATOM MyRegisterClass(HINSTANCE hInstance)
@@ -1191,7 +1246,7 @@ private:
 		wcex.cbWndExtra		= 0;
 		wcex.hInstance		= hInstance;
 		wcex.hCursor        = LoadCursor (NULL, IDC_ARROW);
-		wcex.hbrBackground  = (HBRUSH)(COLOR_3DFACE+1);
+		wcex.hbrBackground = s_hbrBackground;
 		wcex.lpszClassName	= L"WinImgMergeWindowClass";
 		return RegisterClassExW(&wcex);
 	}
@@ -1454,12 +1509,25 @@ private:
 			SetCursor(::LoadCursor(nullptr, !m_bHorizontalSplit ? IDC_SIZEWE : IDC_SIZENS));
 			break;
 		case WM_TIMER:
-			m_buffer.RefreshImages();
-			if (m_nImages <= 1)
-				break;
-			for (int i = 0; i < m_nImages; ++i)
-				m_imgWindow[i].Invalidate(false);
+		{
+			auto now = std::chrono::system_clock::now();
+			auto tse = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch());
+			if (m_timerNext.count() == 0 || tse >= m_timerNext)
+			{
+				m_buffer.RefreshImages();
+				if (m_nImages > 1)
+				{
+					for (int i = 0; i < m_nImages; ++i)
+						m_imgWindow[i].Invalidate(false);
+				}
+				const auto actualCycle = tse - m_timerPrev;
+				const auto idealCycle = 
+					std::chrono::milliseconds((wParam == 2) ? m_buffer.GetOverlayAnimationInterval() / 20 : m_buffer.GetBlinkInterval() / 4);
+				m_timerNext = tse +((m_timerNext.count() == 0 || actualCycle < idealCycle) ? idealCycle : actualCycle);
+			}
+			m_timerPrev = tse;
 			break;
+		}
 		case WM_DESTROY:
 			OnDestroy();
 			break;
@@ -1952,6 +2020,7 @@ private:
 	int m_nImages;
 	HWND m_hWnd;
 	HINSTANCE m_hInstance;
+	inline static HBRUSH s_hbrBackground = CreateSolidBrush(GetSysColor(COLOR_3DFACE));
 	CImgWindow m_imgWindow[3];
 	WNDPROC m_ChildWndProc[3];
 	std::vector<EventListenerInfo> m_listener;
@@ -1967,4 +2036,7 @@ private:
 	CImgMergeBuffer m_buffer;
 	ULONG_PTR m_gdiplusToken;
 	std::unique_ptr<ocr::COcr> m_pOcr;
+	std::chrono::milliseconds m_timerPrev;
+	std::chrono::milliseconds m_timerNext;
+	inline static bool s_bDarkBackgroundEnabled = false;
 };

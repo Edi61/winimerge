@@ -61,6 +61,7 @@ public:
 		SetDlgItemText(m_hWnd, IDC_ZOOM_STATIC, buf);
 
 		SendDlgItemMessage(m_hWnd, IDC_DIFF_HIGHLIGHT, BM_SETCHECK, m_pImgMergeWindow->GetShowDifferences() ? BST_CHECKED : BST_UNCHECKED, 0);
+		SendDlgItemMessage(m_hWnd, IDC_DIFF_BLINK, BM_SETCHECK, m_pImgMergeWindow->GetBlinkDifferences() ? BST_CHECKED : BST_UNCHECKED, 0);
 		SendDlgItemMessage(m_hWnd, IDC_DIFF_BLOCKSIZE_SLIDER, TBM_SETPOS, TRUE, m_pImgMergeWindow->GetDiffBlockSize());
 		SendDlgItemMessage(m_hWnd, IDC_DIFF_BLOCKALPHA_SLIDER, TBM_SETPOS, TRUE, static_cast<LPARAM>(m_pImgMergeWindow->GetDiffColorAlpha() * 100));
 		SendDlgItemMessage(m_hWnd, IDC_DIFF_CDTHRESHOLD_SLIDER, TBM_SETPOS, TRUE, static_cast<LPARAM>(ColorDistanceToSliderValue(m_pImgMergeWindow->GetColorDistanceThreshold())));
@@ -350,7 +351,12 @@ private:
 		RECT rc;
 		GetClientRect(pDrawItem->hwndItem, &rc);
 		Image *pImage = static_cast<CImgMergeWindow *>(m_pImgMergeWindow)->GetDiffMapImage(rc.right - rc.left, rc.bottom - rc.top);
-		RGBQUAD bkColor = { 0xff, 0xff, 0xff, 0xff };
+		RGBQUAD bkColor;
+		const bool dark = m_pImgMergeWindow->IsDarkBackgroundEnabled();
+		if (!dark)
+			bkColor = { 0xff, 0xff, 0xff, 0xff };
+		else
+			bkColor = { 0x00, 0x00, 0x00, 0xff };
 		pImage->getFipImage()->drawEx(pDrawItem->hDC, rc, false, &bkColor);
 		HWND hwndLeftPane = m_pImgMergeWindow->GetPaneHWND(0);
 
@@ -366,7 +372,7 @@ private:
 			rcFrame.right = rcFrame.left + (rc.right - rc.left) * sih.nPage / sih.nMax;
 			rcFrame.top = rc.top + (rc.bottom - rc.top) * siv.nPos / siv.nMax;
 			rcFrame.bottom = rcFrame.top + (rc.bottom - rc.top) * siv.nPage / siv.nMax;
-			FrameRect(pDrawItem->hDC, &rcFrame, reinterpret_cast<HBRUSH>(GetStockObject(BLACK_BRUSH)));
+			FrameRect(pDrawItem->hDC, &rcFrame, reinterpret_cast<HBRUSH>(GetStockObject(dark ? BLACK_BRUSH : WHITE_BRUSH)));
 		}
 	}
 

@@ -489,8 +489,8 @@ public:
 		MYERS_DIFF, MINIMAL_DIFF, PATIENCE_DIFF, HISTOGRAM_DIFF, NONE_DIFF
 	};
 	
-	enum { BLINK_TIME = 800 };
-	enum { OVERLAY_ALPHABLEND_ANIM_TIME = 1000 };
+	enum { BLINK_INTERVAL = 800 };
+	enum { OVERLAY_ANIMATION_INTERVAL = 1000 };
 
 	CImgDiffBuffer() : 
 		  m_nImages(0)
@@ -517,6 +517,9 @@ public:
 		, m_verticalFlip{}
 		, m_temporarilyTransformed(false)
 		, m_diffAlgorithm(MYERS_DIFF)
+		, m_blinkInterval(BLINK_INTERVAL)
+		, m_overlayAnimationInterval(OVERLAY_ANIMATION_INTERVAL)
+		, m_lastErrorCode(0)
 	{
 		for (int i = 0; i < 3; ++i)
 			m_currentPage[i] = 0;
@@ -1178,7 +1181,7 @@ public:
 			{
 				auto now = std::chrono::system_clock::now();
 				auto tse = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch());
-				if ((tse.count() % BLINK_TIME) < BLINK_TIME / 2)
+				if ((tse.count() % m_blinkInterval) < m_blinkInterval / 2)
 				{
 					showDiff = false;
 				}
@@ -1222,7 +1225,14 @@ public:
 	{
 		if (pane < 0 || pane >= m_nImages)
 			return false;
-		return !!m_imgDiff[pane].save(filename);
+		int savedErrno = errno;
+		errno = 0;
+		bool result = !!m_imgDiff[pane].save(filename);
+		if (!result)
+			m_lastErrorCode = errno != 0 ? errno : ENOTSUP;
+		if (errno == 0)
+			errno = savedErrno;
+		return result;
 	}
 
 	int  GetImageWidth(int pane) const
@@ -1528,9 +1538,16 @@ public:
 		m_imgOrig32[pane].copySubImage(image, x, y, x2, y2);
 	}
 
+	int GetLastErrorCode() const
+	{
+		return m_lastErrorCode;
+	}
+
 protected:
 	bool LoadImages()
 	{
+		int savedErrno = errno;
+		errno = 0;
 		bool bSucceeded = true;
 		for (int i = 0; i < m_nImages; ++i)
 		{
@@ -1552,9 +1569,10 @@ protected:
 						if (m_imgConverter[i].load(m_filename[i].c_str()))
 							m_imgConverter[i].render(m_imgOrig[i], 0, m_vectorImageZoomRatio);
 					}
-					if (!m_imgConverter[i].isValid())
+					if (!m_imgConverter[i].isValid() && !m_filename[i].empty())
 					{
 						bSucceeded = false;
+						m_lastErrorCode = (errno != 0) ? errno : ENOTSUP;
 					}
 				}
 				m_imgOrig32[i] = m_imgOrig[i];
@@ -1586,6 +1604,8 @@ protected:
 			}
 			m_imgOrig32[i].convertTo32Bits();
 		}
+		if (errno == 0)
+			errno = savedErrno;
 		return bSucceeded;
 	}
 
@@ -2067,14 +2087,14 @@ protected:
 		{
 			auto now = std::chrono::system_clock::now();
 			auto tse = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch());
-			double t = static_cast<double>(tse.count() % OVERLAY_ALPHABLEND_ANIM_TIME);
-			if (t < OVERLAY_ALPHABLEND_ANIM_TIME * 2 / 10)
-				overlayAlpha = t / (OVERLAY_ALPHABLEND_ANIM_TIME * 2 / 10);
-			else if (t < OVERLAY_ALPHABLEND_ANIM_TIME * 5 / 10)
+			double t = static_cast<double>(tse.count() % m_overlayAnimationInterval);
+			if (t < m_overlayAnimationInterval * 2 / 10)
+				overlayAlpha = t / (m_overlayAnimationInterval * 2 / 10);
+			else if (t < m_overlayAnimationInterval * 5 / 10)
 				overlayAlpha = 1.0;
-			else if (t < OVERLAY_ALPHABLEND_ANIM_TIME * 7 / 10)
-				overlayAlpha = ((OVERLAY_ALPHABLEND_ANIM_TIME * 2 / 10) - (t - (OVERLAY_ALPHABLEND_ANIM_TIME * 5 / 10)))
-				              / (OVERLAY_ALPHABLEND_ANIM_TIME * 2 / 10);
+			else if (t < m_overlayAnimationInterval * 7 / 10)
+				overlayAlpha = ((m_overlayAnimationInterval * 2 / 10) - (t - (m_overlayAnimationInterval * 5 / 10)))
+				              / (m_overlayAnimationInterval * 2 / 10);
 			else
 				overlayAlpha = 0.0;
 		}
@@ -2373,5 +2393,8 @@ protected:
 	std::vector<LineDiffInfo> m_lineDiffInfos;
 	bool m_temporarilyTransformed;
 	DIFF_ALGORITHM m_diffAlgorithm;
+	int m_blinkInterval;
+	int m_overlayAnimationInterval;
+	int m_lastErrorCode;
 	bool m_imgDiffIsTransparent[3];
 };
