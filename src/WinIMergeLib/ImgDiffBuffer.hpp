@@ -546,6 +546,14 @@ public:
 		return m_nImages;
 	}
 
+	bool IsAnyPaneTransparent() const
+	{
+		for (int i = 0; i < m_nImages; ++i)
+			if (m_imgDiffIsTransparent[i])
+				return true;
+		return false;
+	}
+
 	bool IsPaneTransparent(int pane) const
 	{
 		return (pane >= 0 && pane < m_nImages) ? m_imgDiffIsTransparent[pane] : false;
@@ -797,15 +805,23 @@ public:
 		if (m_wipePosition == pos)
 			return;
 		m_wipePosition = pos;
+		bool anyTransparent = IsAnyPaneTransparent();
 		for (int i = 0; i < m_nImages; ++i)
 		{
-			if (m_imgDiffIsTransparent[i] == true)
+			if (m_imgDiffIsTransparent[i])
 			{
 				// Dummy operation with less performance to retrigger redrawing
 				// setPixelColor leads to _bHasChanged = TRUE which will enable redrawing
 				RGBQUAD color;
 				m_imgDiff[i].getFipImage()->getPixelColor(0, 0, &color);
 				m_imgDiff[i].getFipImage()->setPixelColor(0, 0, &color);
+			}
+			else if (anyTransparent)
+			{
+				// In mixed transparency scenarios (at least one transparent pane),
+				// non-transparent images must also be marked as modified so FreeImage
+				// rebuilds their internal DIB cache.
+				m_imgDiff[i].getFipImage()->setModified(true);
 			}
 		}
 		WipeEffect();
