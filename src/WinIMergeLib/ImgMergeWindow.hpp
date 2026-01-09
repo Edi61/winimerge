@@ -1820,9 +1820,10 @@ private:
 			m_buffer.SetWipePosition(pt.y);
 			if (m_buffer.GetWipePosition() != oldWipePos)
 			{
+				bool anyTransparent = m_buffer.IsAnyPaneTransparent();
 				for (int i = 0; i < m_nImages; ++i)
 				{
-					if (m_buffer.IsPaneTransparent(i))
+					if (m_buffer.IsPaneTransparent(i) || (anyTransparent && m_nImages >= 3))
 						RedrawWindow(m_imgWindow[i].GetHWND(), NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW | RDW_NOERASE);
 				}
 				Invalidate();
@@ -1835,9 +1836,10 @@ private:
 			m_buffer.SetWipePosition(pt.x);
 			if (m_buffer.GetWipePosition() != oldWipePos)
 			{
+				bool anyTransparent = m_buffer.IsAnyPaneTransparent();
 				for (int i = 0; i < m_nImages; ++i)
 				{
-					if (m_buffer.IsPaneTransparent(i))
+					if (m_buffer.IsPaneTransparent(i) || (anyTransparent && m_nImages >= 3))
 						RedrawWindow(m_imgWindow[i].GetHWND(), NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW | RDW_NOERASE);
 				}
 				Invalidate();
