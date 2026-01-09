@@ -1997,6 +1997,10 @@ protected:
 				m_wipePosition = w;
 			if (m_wipePosition_old == INT_MAX)
 				m_wipePosition_old = w;
+			
+			const size_t pixelBytes = 4;
+			unsigned char tmp[4];
+			
 			for (unsigned y = 0; y < h; ++y)
 			{
 				for (int pane = 0; pane < m_nImages - 1; ++pane)
@@ -2007,31 +2011,22 @@ protected:
 					{
 						scanline = m_imgDiff[pane].scanLine(y);
 						scanline2 = m_imgDiff[pane + 1].scanLine(y);
+						for (unsigned x = m_wipePosition; x < m_wipePosition_old; ++x)
+						{
+							memcpy(tmp, scanline + x * pixelBytes, pixelBytes);
+							memcpy(scanline + x * pixelBytes, scanline2 + x * pixelBytes, pixelBytes);
+							memcpy(scanline2 + x * pixelBytes, tmp, pixelBytes);
+						}
 					}
 					else
 					{
 						scanline = m_imgDiff[m_nImages - 2 - pane].scanLine(y);
 						scanline2 = m_imgDiff[m_nImages - 1 - pane].scanLine(y);
-					}
-
-					if (m_wipePosition <= m_wipePosition_old)
-					{
-						for (unsigned x = m_wipePosition; x < m_wipePosition_old; ++x)
-						{
-							std::swap(scanline[x * 4 + 0], scanline2[x * 4 + 0]);
-							std::swap(scanline[x * 4 + 1], scanline2[x * 4 + 1]);
-							std::swap(scanline[x * 4 + 2], scanline2[x * 4 + 2]);
-							std::swap(scanline[x * 4 + 3], scanline2[x * 4 + 3]);
-						}
-					}
-					else
-					{
 						for (unsigned x = m_wipePosition_old; x < m_wipePosition; ++x)
 						{
-							std::swap(scanline[x * 4 + 0], scanline2[x * 4 + 0]);
-							std::swap(scanline[x * 4 + 1], scanline2[x * 4 + 1]);
-							std::swap(scanline[x * 4 + 2], scanline2[x * 4 + 2]);
-							std::swap(scanline[x * 4 + 3], scanline2[x * 4 + 3]);
+							memcpy(tmp, scanline + x * pixelBytes, pixelBytes);
+							memcpy(scanline + x * pixelBytes, scanline2 + x * pixelBytes, pixelBytes);
+							memcpy(scanline2 + x * pixelBytes, tmp, pixelBytes);
 						}
 					}
 				}
