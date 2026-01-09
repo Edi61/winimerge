@@ -1941,7 +1941,8 @@ protected:
 				m_wipePosition = h;
 			if (m_wipePosition_old == INT_MAX)
 				m_wipePosition_old = h;
-			auto tmp = new unsigned char[w * 4];
+			const size_t lineBytes = w * 4;
+			auto tmp = new unsigned char[lineBytes];
 			if (m_wipePosition <= m_wipePosition_old)
 			{
 				for (unsigned y = m_wipePosition; y < m_wipePosition_old; ++y)
@@ -1950,9 +1951,9 @@ protected:
 					{
 						unsigned char* scanline = m_imgDiff[pane].scanLine(y);
 						unsigned char* scanline2 = m_imgDiff[pane + 1].scanLine(y);
-						memcpy(tmp, scanline, w * 4);
-						memcpy(scanline, scanline2, w * 4);
-						memcpy(scanline2, tmp, w * 4);
+						memcpy(tmp, scanline, lineBytes);
+						memcpy(scanline, scanline2, lineBytes);
+						memcpy(scanline2, tmp, lineBytes);
 					}
 				}
 			}
@@ -1964,16 +1965,16 @@ protected:
 					{
 						unsigned char* scanline = m_imgDiff[pane].scanLine(y);
 						unsigned char* scanline2 = m_imgDiff[pane - 1].scanLine(y);
-						memcpy(tmp, scanline, w * 4);
-						memcpy(scanline, scanline2, w * 4);
-						memcpy(scanline2, tmp, w * 4);
+						memcpy(tmp, scanline, lineBytes);
+						memcpy(scanline, scanline2, lineBytes);
+						memcpy(scanline2, tmp, lineBytes);
 					}
 				}
 			}
 
 			delete[] tmp;
 		}
-		else if (m_wipeMode = WIPE_HORIZONTAL)
+		else if (m_wipeMode == WIPE_HORIZONTAL)
 		{
 			if (m_wipePosition >= w)
 				m_wipePosition = w;
@@ -2000,38 +2001,20 @@ protected:
 					{
 						for (unsigned x = m_wipePosition; x < m_wipePosition_old; ++x)
 						{
-							unsigned char tmp[4];
-							tmp[0] = scanline[x * 4 + 0];
-							tmp[1] = scanline[x * 4 + 1];
-							tmp[2] = scanline[x * 4 + 2];
-							tmp[3] = scanline[x * 4 + 3];
-							scanline[x * 4 + 0] = scanline2[x * 4 + 0];
-							scanline[x * 4 + 1] = scanline2[x * 4 + 1];
-							scanline[x * 4 + 2] = scanline2[x * 4 + 2];
-							scanline[x * 4 + 3] = scanline2[x * 4 + 3];
-							scanline2[x * 4 + 0] = tmp[0];
-							scanline2[x * 4 + 1] = tmp[1];
-							scanline2[x * 4 + 2] = tmp[2];
-							scanline2[x * 4 + 3] = tmp[3];
+							std::swap(scanline[x * 4 + 0], scanline2[x * 4 + 0]);
+							std::swap(scanline[x * 4 + 1], scanline2[x * 4 + 1]);
+							std::swap(scanline[x * 4 + 2], scanline2[x * 4 + 2]);
+							std::swap(scanline[x * 4 + 3], scanline2[x * 4 + 3]);
 						}
 					}
 					else
 					{
 						for (unsigned x = m_wipePosition_old; x < m_wipePosition; ++x)
 						{
-							unsigned char tmp[4];
-							tmp[0] = scanline[x * 4 + 0];
-							tmp[1] = scanline[x * 4 + 1];
-							tmp[2] = scanline[x * 4 + 2];
-							tmp[3] = scanline[x * 4 + 3];
-							scanline[x * 4 + 0] = scanline2[x * 4 + 0];
-							scanline[x * 4 + 1] = scanline2[x * 4 + 1];
-							scanline[x * 4 + 2] = scanline2[x * 4 + 2];
-							scanline[x * 4 + 3] = scanline2[x * 4 + 3];
-							scanline2[x * 4 + 0] = tmp[0];
-							scanline2[x * 4 + 1] = tmp[1];
-							scanline2[x * 4 + 2] = tmp[2];
-							scanline2[x * 4 + 3] = tmp[3];
+							std::swap(scanline[x * 4 + 0], scanline2[x * 4 + 0]);
+							std::swap(scanline[x * 4 + 1], scanline2[x * 4 + 1]);
+							std::swap(scanline[x * 4 + 2], scanline2[x * 4 + 2]);
+							std::swap(scanline[x * 4 + 3], scanline2[x * 4 + 3]);
 						}
 					}
 				}
