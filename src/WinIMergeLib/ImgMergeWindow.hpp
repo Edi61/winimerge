@@ -1747,15 +1747,29 @@ private:
 		}
 		else if (m_draggingModeCurrent == DRAGGING_MODE::VERTICAL_WIPE)
 		{
+			int oldWipePos = m_buffer.GetWipePosition();
 			imgWindow.SetRectangleSelection(0, pt.y, m_buffer.GetImageWidth(evt.pane), pt.y);
 			m_buffer.SetWipePosition(pt.y);
-			Invalidate();
+			// Only redraw if position changed AND pane has transparency
+			if (m_buffer.GetWipePosition() != oldWipePos && m_buffer.IsAnyPaneTransparent()) {
+				for (int i = 0; i < m_nImages; ++i)
+					RedrawWindow(m_imgWindow[i].GetHWND(), NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW | RDW_NOERASE);
+			} else {
+				Invalidate();
+			}
 		}
 		else if (m_draggingModeCurrent == DRAGGING_MODE::HORIZONTAL_WIPE)
 		{
+			int oldWipePos = m_buffer.GetWipePosition();
 			imgWindow.SetRectangleSelection(pt.x, 0, pt.x, m_buffer.GetImageHeight(evt.pane));
 			m_buffer.SetWipePosition(pt.x);
-			Invalidate();
+			// Only redraw if position changed AND pane has transparency
+			if (m_buffer.GetWipePosition() != oldWipePos && m_buffer.IsAnyPaneTransparent()) {
+				for (int i = 0; i < m_nImages; ++i)
+					RedrawWindow(m_imgWindow[i].GetHWND(), NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW | RDW_NOERASE);
+			} else {
+				Invalidate();
+			}
 		}
 		else if (m_draggingModeCurrent == DRAGGING_MODE::RECTANGLE_SELECT)
 		{

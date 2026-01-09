@@ -543,6 +543,14 @@ public:
 		return m_nImages;
 	}
 
+	bool IsAnyPaneTransparent() const
+	{
+		for (int i = 0; i < m_nImages; ++i)
+			if (m_imgDiffIsTransparent[i])
+				return true;
+		return false;
+	}
+
 	Image::Color GetPixelColor(int pane, int x, int y) const
 	{
 		return m_imgPreprocessed[pane].pixel(x - m_offset[pane].x, y - m_offset[pane].y);
