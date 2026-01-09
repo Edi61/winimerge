@@ -1818,11 +1818,13 @@ private:
 			int oldWipePos = m_buffer.GetWipePosition();
 			imgWindow.SetRectangleSelection(0, pt.y, m_buffer.GetImageWidth(evt.pane), pt.y);
 			m_buffer.SetWipePosition(pt.y);
-			// Only redraw if position changed AND pane has transparency
-			if (m_buffer.GetWipePosition() != oldWipePos && m_buffer.IsAnyPaneTransparent()) {
+			if (m_buffer.GetWipePosition() != oldWipePos)
+			{
 				for (int i = 0; i < m_nImages; ++i)
-					RedrawWindow(m_imgWindow[i].GetHWND(), NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW | RDW_NOERASE);
-			} else {
+				{
+					if (m_buffer.IsPaneTransparent(i))
+						RedrawWindow(m_imgWindow[i].GetHWND(), NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW | RDW_NOERASE);
+				}
 				Invalidate();
 			}
 		}
@@ -1831,11 +1833,13 @@ private:
 			int oldWipePos = m_buffer.GetWipePosition();
 			imgWindow.SetRectangleSelection(pt.x, 0, pt.x, m_buffer.GetImageHeight(evt.pane));
 			m_buffer.SetWipePosition(pt.x);
-			// Only redraw if position changed AND pane has transparency
-			if (m_buffer.GetWipePosition() != oldWipePos && m_buffer.IsAnyPaneTransparent()) {
+			if (m_buffer.GetWipePosition() != oldWipePos)
+			{
 				for (int i = 0; i < m_nImages; ++i)
-					RedrawWindow(m_imgWindow[i].GetHWND(), NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW | RDW_NOERASE);
-			} else {
+				{
+					if (m_buffer.IsPaneTransparent(i))
+						RedrawWindow(m_imgWindow[i].GetHWND(), NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW | RDW_NOERASE);
+				}
 				Invalidate();
 			}
 		}

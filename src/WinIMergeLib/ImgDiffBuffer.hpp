@@ -546,12 +546,9 @@ public:
 		return m_nImages;
 	}
 
-	bool IsAnyPaneTransparent() const
+	bool IsPaneTransparent(int pane) const
 	{
-		for (int i = 0; i < m_nImages; ++i)
-			if (m_imgDiffIsTransparent[i])
-				return true;
-		return false;
+		return (pane >= 0 && pane < m_nImages) ? m_imgDiffIsTransparent[pane] : false;
 	}
 
 	Image::Color GetPixelColor(int pane, int x, int y) const
@@ -785,6 +782,8 @@ public:
 		{
 			if (m_imgDiff[i].getFipImage()->isTransparent())
 				m_imgDiffIsTransparent[i] = true;
+			else
+				m_imgDiffIsTransparent[i] = false;
 		}
 	}
 
@@ -824,6 +823,8 @@ public:
 		{
 			if (m_imgDiff[i].getFipImage()->isTransparent())
 				m_imgDiffIsTransparent[i] = true;
+			else
+				m_imgDiffIsTransparent[i] = false;
 		}
 		if (m_wipeMode != WIPE_NONE)
 			WipeEffect();
